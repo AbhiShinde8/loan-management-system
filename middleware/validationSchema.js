@@ -1,120 +1,83 @@
-const Joi = require("joi");
+const { body } = require("express-validator");
 
-// ========================================
-// CUSTOMER VALIDATION SCHEMAS
-// ========================================
+// ✅ Customer Schemas
+const createCustomerSchema = [
+  body("name").notEmpty().withMessage("Name is required").trim(),
+  body("email").isEmail().withMessage("Valid email required").trim(),
+  body("mobile")
+    .matches(/^[0-9]{10}$/)
+    .withMessage("Mobile must be 10 digits"),
+  body("address").notEmpty().withMessage("Address is required").trim(),
+  body("occupation").notEmpty().withMessage("Occupation is required").trim(),
+  body("monthlyIncome")
+    .isInt({ min: 1000 })
+    .withMessage("Monthly income must be at least 1000"),
+  body("cibilScore")
+    .isInt({ min: 300, max: 900 })
+    .withMessage("CIBIL score must be between 300-900"),
+];
 
-const customerValidationSchema = Joi.object({
-  name: Joi.string().min(2).max(100).required().trim().messages({
-    "string.empty": "Customer name is required",
-    "string.min": "Name must be at least 2 characters",
-    "string.max": "Name cannot exceed 100 characters",
-  }),
+const updateCustomerSchema = [
+  body("name").optional().trim(),
+  body("email").optional().isEmail().withMessage("Valid email required"),
+  body("mobile")
+    .optional()
+    .matches(/^[0-9]{10}$/)
+    .withMessage("Mobile must be 10 digits"),
+  body("address").optional().trim(),
+  body("status")
+    .optional()
+    .isIn(["active", "inactive", "suspended"])
+    .withMessage("Invalid status"),
+];
 
-  address: Joi.string().min(5).max(250).required().trim().messages({
-    "string.empty": "Address is required",
-    "string.min": "Address must be at least 5 characters",
-  }),
+// ✅ Loan Schemas
+const createLoanSchema = [
+  body("customerId").notEmpty().withMessage("Customer ID required").trim(),
+  body("loanAmount")
+    .isInt({ min: 1000 })
+    .withMessage("Loan amount minimum 1000"),
+  body("loanTenure")
+    .isInt({ min: 1, max: 360 })
+    .withMessage("Tenure 1-360 months"),
+  body("interestRate").isFloat({ min: 0, max: 100 }).withMessage("Rate 0-100%"),
+  body("loanPurpose").notEmpty().withMessage("Loan purpose required").trim(),
+  body("disbursementDate").isISO8601().withMessage("Valid date required"),
+];
 
-  mobile: Joi.string()
-    .pattern(/^[0-9]{10}$/)
-    .required()
-    .messages({
-      "string.pattern.base": "Mobile must be exactly 10 digits",
-      "string.empty": "Mobile is required",
-    }),
+const updateLoanSchema = [
+  body("status")
+    .optional()
+    .isIn(["active", "completed", "closed"])
+    .withMessage("Invalid status"),
+];
 
-  referencePersonName: Joi.string().min(2).max(100).required().trim().messages({
-    "string.empty": "Reference person name is required",
-  }),
+// ✅ Payment Schemas
+const recordPaymentSchema = [
+  body("customerId").notEmpty().withMessage("Customer ID required").trim(),
+  body("loanId").notEmpty().withMessage("Loan ID required").trim(),
+  body("emiNumber").isInt({ min: 1 }).withMessage("Valid EMI number required"),
+  body("amountPaid")
+    .isFloat({ min: 1 })
+    .withMessage("Amount must be greater than 0"),
+  body("paymentMethod")
+    .isIn(["cash", "bank_transfer", "cheque", "online", "upi"])
+    .withMessage("Invalid payment method"),
+  body("paymentDate").isISO8601().withMessage("Valid date required"),
+];
 
-  referencePersonMobile: Joi.string()
-    .pattern(/^[0-9]{10}$/)
-    .required()
-    .messages({
-      "string.pattern.base": "Reference mobile must be 10 digits",
-    }),
-
-  referencePersonAddress: Joi.string()
-    .min(5)
-    .max(250)
-    .required()
-    .trim()
-    .messages({
-      "string.empty": "Reference address is required",
-    }),
-});
-
-const customerUpdateSchema = Joi.object({
-  name: Joi.string().min(2).max(100).trim(),
-
-  address: Joi.string().min(5).max(250).trim(),
-
-  mobile: Joi.string().pattern(/^[0-9]{10}$/),
-
-  referencePersonName: Joi.string().min(2).max(100).trim(),
-
-  referencePersonMobile: Joi.string().pattern(/^[0-9]{10}$/),
-
-  referencePersonAddress: Joi.string().min(5).max(250).trim(),
-
-  status: Joi.string().valid("active", "inactive", "suspended"),
-}).min(1);
-
-// ========================================
-// LOAN VALIDATION SCHEMAS
-// ========================================
-
-const loanValidationSchema = Joi.object({
-  customerId: Joi.string().required().messages({
-    "string.empty": "Customer ID is required",
-  }),
-
-  disbursedAmount: Joi.number()
-    .integer()
-    .min(1000)
-    .max(500000)
-    .required()
-    .messages({
-      "number.min": "Loan amount must be at least ₹1000",
-      "number.max": "Loan amount cannot exceed ₹500000",
-    }),
-
-  deductionPercentage: Joi.number().min(0).max(100).default(10).messages({
-    "number.min": "Deduction percentage cannot be less than 0",
-    "number.max": "Deduction percentage cannot exceed 100",
-  }),
-
-  totalEmi: Joi.number().integer().min(1).max(36).default(10).messages({
-    "number.min": "EMI count must be at least 1",
-    "number.max": "EMI count cannot exceed 36",
-  }),
-
-  emiFrequency: Joi.string()
-    .valid("every 8 days", "every 15 days", "every 30 days")
-    .default("every 8 days"),
-
-  startDate: Joi.date().required().messages({
-    "date.base": "Start date must be a valid date",
-  }),
-
-  penaltyRate: Joi.number().min(0).max(100).default(5),
-});
-
-const updateLoanStatusSchema = Joi.object({
-  status: Joi.string()
-    .valid("active", "completed", "hold", "cancelled")
-    .required()
-    .messages({
-      "any.only": "Status must be one of: active, completed, hold, cancelled",
-    }),
-
-  notes: Joi.string().max(500).optional(),
-});
+const verifyPaymentSchema = [
+  body("status")
+    .isIn(["verified", "failed", "cancelled"])
+    .withMessage("Invalid status"),
+  body("remarks").optional().trim(),
+];
 
 module.exports = {
-  customerValidationSchema,
-  customerUpdateSchema,
-  loanValidationSchema,
-  updateLoanStatusSchema,
+  createCustomerSchema,
+  updateCustomerSchema,
+  createLoanSchema,
+  updateLoanSchema,
+  recordPaymentSchema,
+  verifyPaymentSchema,
 };

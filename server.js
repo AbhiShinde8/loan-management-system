@@ -1,128 +1,120 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-require("dotenv").config();
+const bodyParser = require("body-parser");
 
 const app = express();
 
-// 📦 Middleware
+console.log("\n" + "=".repeat(70));
+console.log("📌 INITIALIZING SERVER");
+console.log("=".repeat(70) + "\n");
+
+// ==================== MIDDLEWARE ====================
+console.log("⚙️  Setting up middleware...");
+
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
-// 🔗 Connect MongoDB
+app.use((req, res, next) => {
+  console.log(`\n📨 ${req.method} ${req.path}`);
+  next();
+});
+
+console.log("✅ Middleware setup complete\n");
+
+// ==================== DATABASE CONNECTION ====================
+console.log("🔌 Connecting to MongoDB...");
+
+const mongoURI =
+  process.env.MONGODB_URI || "mongodb://localhost:27017/loan-management";
+console.log(`   URI: ${mongoURI}\n`);
+
 mongoose
-  .connect(process.env.MONGODB_URI, {
-    // useNewUrlParser: true,
-    // useUnifiedTopology: true,
-  })
+  .connect(mongoURI)
   .then(() => {
-    console.log("✅ MongoDB connected successfully");
+    console.log("✅ MongoDB connected successfully\n");
   })
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err.message);
     process.exit(1);
   });
 
-// 📍 Request Logger
-app.use((req, res, next) => {
-  console.log(
-    `📨 [${new Date().toLocaleTimeString()}] ${req.method} ${req.path}`,
-  );
-  next();
-});
+// ==================== LOAD MODELS ====================
+console.log("📦 Loading models...");
 
-// ✅ Basic Routes
-app.get("/", (req, res) => {
+try {
+  require("./models/Customer");
+  require("./models/Loan");
+  require("./models/EmiSchedule");
+  require("./models/Payment");
+  console.log("✅ All models loaded successfully\n");
+} catch (error) {
+  console.error("❌ Error loading models:", error.message);
+  process.exit(1);
+}
+
+// ==================== LOAD ROUTES ====================
+console.log("🔀 Loading routes...");
+
+try {
+  const customerRoutes = require("./routes/customerRoutes");
+  const loanRoutes = require("./routes/loanRoutes");
+  const paymentRoutes = require("./routes/paymentRoutes");
+
+  app.use("/api/customer", customerRoutes);
+  app.use("/api/loan", loanRoutes);
+  app.use("/api/payment", paymentRoutes);
+
+  console.log("✅ All routes loaded successfully\n");
+} catch (error) {
+  console.error("❌ Error loading routes:", error.message);
+  process.exit(1);
+}
+
+// ==================== HEALTH CHECK ====================
+app.get("/api/health", (req, res) => {
   res.json({
-    message: "🎉 Loan Management System API",
-    version: "1.0.0",
-    status: "running",
+    success: true,
+    message: "Server is running",
     timestamp: new Date(),
+    database:
+      mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
   });
 });
 
-app.get("/health", (req, res) => {
-  res.json({
-    status: "ok",
-    uptime: process.uptime(),
-    mongodb:
-      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-    timestamp: new Date(),
-  });
-});
-
-// 🎯 API Routes
-console.log("📌 Mounting routes...");
-
-const customerRoutes = require("./routes/customerRoutes");
-const loanRoutes = require("./routes/loanRoutes");
-
-app.use("/api/customer", customerRoutes);
-app.use("/api/loan", loanRoutes);
-
-console.log("✅ All routes mounted successfully");
-
-// ❌ 404 Handler
+// ==================== 404 HANDLER ====================
 app.use((req, res) => {
-  console.log(`⚠️ 404 - Route not found: ${req.method} ${req.path}`);
   res.status(404).json({
     success: false,
     message: "Route not found",
     path: req.path,
     method: req.method,
-    availableRoutes: {
-      customer: "/api/customer",
-      loan: "/api/loan",
-    },
   });
 });
 
-// ⚠️ Error Handler
+// ==================== ERROR HANDLER ====================
 app.use((err, req, res, next) => {
-  console.error("❌ Error:", err);
-
-  const statusCode = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-
-  res.status(statusCode).json({
+  console.error("❌ Error:", err.message);
+  res.status(err.statusCode || 500).json({
     success: false,
-    message,
-    ...(process.env.NODE_ENV === "development" && { error: err.message }),
+    message: err.message || "Internal Server Error",
   });
 });
 
-// 🚀 Server Start
+// ==================== START SERVER ====================
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════╗
-║  🚀 LOAN MANAGEMENT SYSTEM API 🚀     ║
-╚════════════════════════════════════════╝
 
-  🌐 Server: http://localhost:${PORT}
-  🗄️  Database: ✅ Connected
-  📊 Environment: ${process.env.NODE_ENV}
-  ⏰ Started: ${new Date().toLocaleString()}
-
-  📌 Available Routes:
-     - GET  /health
-     - POST /api/customer/create
-     - GET  /api/customer/list
-     - POST /api/loan/disburse
-     - GET  /api/loan/list
-
-╔════════════════════════════════════════╗
-  `);
-});
-
-// 🛑 Graceful Shutdown
-process.on("SIGTERM", () => {
-  console.log("📛 SIGTERM received: closing server");
-  server.close(() => {
-    console.log("✅ Server closed");
-    mongoose.connection.close();
-  });
+app.listen(PORT, () => {
+  console.log("=".repeat(70));
+  console.log("🚀 SERVER STARTED SUCCESSFULLY");
+  console.log("=".repeat(70));
+  console.log(`📌 Server: http://localhost:${PORT}`);
+  console.log(`📌 API: http://localhost:${PORT}/api`);
+  console.log("=".repeat(70) + "\n");
 });
 
 module.exports = app;

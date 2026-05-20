@@ -1,68 +1,83 @@
 const mongoose = require("mongoose");
 
+console.log("📌 Defining EmiSchedule model...");
+
 const emiScheduleSchema = new mongoose.Schema(
   {
     _id: {
-      type: String,
-      required: true,
+      type: String, // ✅ IMPORTANT: String के रूप में define करो
+      required: false, // Auto-generate होगा
     },
     loanId: {
       type: String,
-      required: true,
+      required: [true, "Loan ID is required"],
+      index: true,
+    },
+    customerId: {
+      type: String,
+      required: [true, "Customer ID is required"],
       index: true,
     },
     emiNumber: {
       type: Number,
-      required: true,
-      min: 1,
-      max: 10,
+      required: [true, "EMI number is required"],
+    },
+    emiAmount: {
+      type: Number,
+      required: [true, "EMI amount is required"],
+      min: [1, "EMI amount must be greater than 0"],
     },
     dueDate: {
       type: Date,
-      required: true,
+      required: [true, "Due date is required"],
+      index: true,
     },
-    amount: {
+    paidDate: {
+      type: Date,
+      default: null,
+    },
+    amountPaid: {
       type: Number,
-      required: true,
+      default: 0,
+      min: [0, "Amount paid cannot be negative"],
+    },
+    penaltyApplied: {
+      type: Number,
+      default: 0,
+      min: [0, "Penalty cannot be negative"],
+    },
+    daysOverdue: {
+      type: Number,
+      default: 0,
+      min: [0, "Days overdue cannot be negative"],
     },
     status: {
       type: String,
-      enum: ["paid", "pending", "overdue"],
+      enum: {
+        values: ["pending", "paid", "partial", "overdue"],
+        message: "Status must be pending, paid, partial, or overdue",
+      },
       default: "pending",
-    },
-
-    // Payment Info
-    paidDate: Date,
-    paidAmount: Number,
-    penaltyAmount: {
-      type: Number,
-      default: 0,
-    },
-    totalAmount: {
-      type: Number,
-      required: true,
-    },
-
-    // Payment Method
-    paymentMethod: {
-      type: String,
-      enum: ["cash", "online", "bank_transfer", "cheque"],
-      default: "cash",
-    },
-    paidByAdmin: String,
-    notes: String,
-
-    createdAt: {
-      type: Date,
-      default: Date.now,
+      index: true,
     },
   },
-  { _id: false },
+  {
+    timestamps: true,
+  },
 );
 
-// Indexes
-emiScheduleSchema.index({ loanId: 1 });
-emiScheduleSchema.index({ status: 1 });
-emiScheduleSchema.index({ dueDate: 1 });
+// ✅ Composite index for fast queries
+emiScheduleSchema.index({ loanId: 1, emiNumber: 1 }, { unique: true });
+emiScheduleSchema.index({ customerId: 1, status: 1 });
+emiScheduleSchema.index({ dueDate: 1, status: 1 });
 
-module.exports = mongoose.model("EmiSchedule", emiScheduleSchema);
+let EmiSchedule;
+try {
+  EmiSchedule = mongoose.model("EmiSchedule");
+  console.log("✅ EmiSchedule model already exists");
+} catch (error) {
+  EmiSchedule = mongoose.model("EmiSchedule", emiScheduleSchema);
+  console.log("✅ EmiSchedule model created successfully");
+}
+
+module.exports = EmiSchedule;

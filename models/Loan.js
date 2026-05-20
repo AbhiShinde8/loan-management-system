@@ -1,127 +1,108 @@
 const mongoose = require("mongoose");
 
+console.log("📌 Defining Loan model...");
+
 const loanSchema = new mongoose.Schema(
   {
     _id: {
-      type: String,
+      type: String, // ✅ IMPORTANT: String के रूप में define करो
       required: true,
-      // Format: loan_001, loan_002
-    },
-    loanId: {
-      type: String,
-      unique: true,
-      required: true,
-      // Format: LOAN_2024_001
+      primary: true,
     },
     customerId: {
       type: String,
-      required: true,
+      required: [true, "Customer ID is required"],
       index: true,
     },
-    accountNumber: {
+    loanAmount: {
+      type: Number,
+      required: [true, "Loan amount is required"],
+      min: [1000, "Loan amount must be at least 1000"],
+    },
+    loanTenure: {
+      type: Number,
+      required: [true, "Loan tenure is required"],
+      min: [1, "Loan tenure must be at least 1 month"],
+      max: [360, "Loan tenure cannot exceed 360 months"],
+    },
+    interestRate: {
+      type: Number,
+      required: [true, "Interest rate is required"],
+      min: [0, "Interest rate cannot be negative"],
+      max: [100, "Interest rate cannot exceed 100%"],
+    },
+    loanPurpose: {
       type: String,
-      required: true,
+      required: [true, "Loan purpose is required"],
+      trim: true,
     },
-
-    // Amount Details
-    disbursedAmount: {
-      type: Number,
-      required: [true, "Disbursed amount is required"],
-      min: [100, "Amount must be at least ₹100"],
+    disbursementDate: {
+      type: Date,
+      required: [true, "Disbursement date is required"],
+      index: true,
     },
-    deductionPercentage: {
-      type: Number,
-      default: 10,
-      min: 0,
-      max: 100,
-    },
-    deductionAmount: {
-      type: Number,
-      required: true,
-    },
-    actualAmountGiven: {
-      type: Number,
-      required: true,
-    },
-
-    // EMI Details
     emiAmount: {
       type: Number,
-      required: true,
+      required: [true, "EMI amount is required"],
+      min: [1, "EMI amount must be greater than 0"],
     },
-    totalEmi: {
+    totalInterest: {
       type: Number,
-      default: 10,
+      required: [true, "Total interest is required"],
+      min: [0, "Total interest cannot be negative"],
     },
-    emiFrequency: {
-      type: String,
-      default: "every 8 days",
+    totalAmount: {
+      type: Number,
+      required: [true, "Total amount is required"],
+      min: [1, "Total amount must be greater than 0"],
     },
-
-    // Timeline
-    startDate: {
-      type: Date,
-      required: true,
-    },
-    dueDate: {
-      type: Date,
-      required: true,
-    },
-
-    // Status
-    status: {
-      type: String,
-      enum: ["active", "completed", "hold", "cancelled"],
-      default: "active",
-    },
-    completedEmi: {
+    paidAmount: {
       type: Number,
       default: 0,
-      min: 0,
+      min: [0, "Paid amount cannot be negative"],
     },
-    remainingEmi: {
+    remainingAmount: {
       type: Number,
-      default: 10,
+      required: [true, "Remaining amount is required"],
+      min: [0, "Remaining amount cannot be negative"],
     },
-
-    // Penalty
+    status: {
+      type: String,
+      enum: {
+        values: ["active", "closed", "defaulted", "suspended"],
+        message: "Status must be active, closed, defaulted, or suspended",
+      },
+      default: "active",
+      index: true,
+    },
     penaltyRate: {
       type: Number,
       default: 5,
+      min: [0, "Penalty rate cannot be negative"],
+      max: [100, "Penalty rate cannot exceed 100%"],
     },
-    totalPenalty: {
-      type: Number,
-      default: 0,
+    createdByAdmin: {
+      type: String,
+      default: "system",
     },
-
-    // Admin Tracking
-    createdByAdmin: String,
-    updatedByAdmin: String,
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
-
-    // Edit History
-    editHistory: [
-      {
-        fieldChanged: String,
-        oldValue: mongoose.Schema.Types.Mixed,
-        newValue: mongoose.Schema.Types.Mixed,
-        changedBy: String,
-        changedAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
   },
-  { _id: false },
+  {
+    timestamps: true,
+    _id: true, // ✅ IMPORTANT: _id को explicitly enable करो
+  },
 );
 
-// Indexes
-loanSchema.index({ customerId: 1 });
-loanSchema.index({ loanId: 1 });
-loanSchema.index({ status: 1 });
+// ✅ Index for fast queries
+loanSchema.index({ customerId: 1, status: 1 });
+loanSchema.index({ disbursementDate: 1 });
 
-module.exports = mongoose.model("Loan", loanSchema);
+let Loan;
+try {
+  Loan = mongoose.model("Loan");
+  console.log("✅ Loan model already exists");
+} catch (error) {
+  Loan = mongoose.model("Loan", loanSchema);
+  console.log("✅ Loan model created successfully");
+}
+
+module.exports = Loan;

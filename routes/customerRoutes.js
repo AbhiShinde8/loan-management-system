@@ -1,51 +1,30 @@
-const express = require('express');
-const router = express.Router();
-const validateRequest = require('../middleware/validateRequest');
+const express = require("express");
+const validate = require("../middleware/validate");
 const {
-  customerValidationSchema,
-  customerUpdateSchema
-} = require('../middleware/validationSchema');
+  createCustomerSchema,
+  updateCustomerSchema,
+} = require("../middleware/validationSchema");
 const {
   createCustomer,
+  getCustomerDetails,
   getAllCustomers,
-  getCustomerById,
-  getCustomerByMobile,
   updateCustomer,
-  deleteCustomer,
-  getCustomerStats
-} = require('../controllers/customerController');
+  getCustomerStats,
+  searchCustomers,
+} = require("../controllers/customerController");
 
-console.log('✅ Customer routes loading...');
+const router = express.Router();
 
-// 📊 STATS (पहले define करो)
-router.get('/stats/overview', getCustomerStats);
+console.log("📌 Loading customer routes...");
 
-// 📝 CREATE CUSTOMER
-router.post(
-  '/create',
-  validateRequest(customerValidationSchema),
-  createCustomer
-);
+// ✅ Routes
+router.post("/create", validate(createCustomerSchema), createCustomer);
+router.get("/search", searchCustomers);
+router.get("/stats", getCustomerStats);
+router.get("/all", getAllCustomers);
+router.get("/:customerId", getCustomerDetails);
+router.put("/:customerId", validate(updateCustomerSchema), updateCustomer);
 
-// 📋 GET ALL CUSTOMERS
-router.get('/list', getAllCustomers);
-
-// 📍 GET BY MOBILE
-router.get('/mobile/:mobile', getCustomerByMobile);
-
-// 🔍 GET SINGLE CUSTOMER BY ID
-router.get('/:customerId', getCustomerById);
-
-// ✏️ UPDATE CUSTOMER
-router.put(
-  '/:customerId',
-  validateRequest(customerUpdateSchema),
-  updateCustomer
-);
-
-// 🗑️ DELETE CUSTOMER
-router.delete('/:customerId', deleteCustomer);
-
-console.log('✅ Customer routes loaded successfully');
+console.log("✅ Customer routes loaded");
 
 module.exports = router;

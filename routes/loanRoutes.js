@@ -1,43 +1,30 @@
 const express = require("express");
-const router = express.Router();
-const validateRequest = require("../middleware/validateRequest");
+const validate = require("../middleware/validate");
 const {
-  loanValidationSchema,
-  updateLoanStatusSchema,
+  createLoanSchema,
+  updateLoanSchema,
 } = require("../middleware/validationSchema");
 const {
-  disburseLoan,
+  createLoan,
   getAllLoans,
-  getLoanById,
-  getLoansByCustomerId,
-  updateLoanStatus,
+  getLoanDetails,
+  updateLoan,
+  getCustomerLoans,
   getLoanStats,
-  getEmiSchedule,
 } = require("../controllers/loanController");
 
-// 📊 STATS (पहले define करो)
-router.get("/stats/overview", getLoanStats);
+const router = express.Router();
 
-// 💰 DISBURSE NEW LOAN
-router.post("/disburse", validateRequest(loanValidationSchema), disburseLoan);
+console.log("📌 Loading loan routes...");
 
-// 📋 GET ALL LOANS
-router.get("/list", getAllLoans);
+// ✅ Routes
+router.post("/create", validate(createLoanSchema), createLoan);
+router.get("/all", getAllLoans);
+router.get("/:loanId", getLoanDetails);
+router.put("/:loanId", validate(updateLoanSchema), updateLoan);
+router.get("/customer/:customerId", getCustomerLoans);
+router.get("/stats/all", getLoanStats);
 
-// 👤 GET LOANS BY CUSTOMER
-router.get("/customer/:customerId", getLoansByCustomerId);
-
-// 📅 GET EMI SCHEDULE
-router.get("/:loanId/emi-schedule", getEmiSchedule);
-
-// 🔍 GET SINGLE LOAN
-router.get("/:loanId", getLoanById);
-
-// ✏️ UPDATE LOAN STATUS
-router.put(
-  "/:loanId/status",
-  validateRequest(updateLoanStatusSchema),
-  updateLoanStatus,
-);
+console.log("✅ Loan routes loaded");
 
 module.exports = router;
